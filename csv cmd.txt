@@ -1,0 +1,41 @@
+python dataset.py --input airlines_flights_data.csv --input-format csv --header --model phi
+
+python dataset.py --input world_tourism_economy_data.csv --input-format csv --header --model phi
+
+python dataset_rag_full.py --input airlines_flights_data.csv --input-format csv --header --model phi --ui terminal --concise
+
+python dataset_rag_full.py --input airlines_flights_data.csv --input-format csv --header --model phi --concise --tts --voice-gender female
+
+
+python dataset_rag_full.py --input . --input-format csv --header --model phi --concise --tts
+
+
+MLFLOW:
+
+mlflow server --backend-store-uri sqlite:///mlflow.db --default-artifact-root ./mlruns --host 127.0.0.1 --port 5000
+
+
+HUGGING FACE:
+
+HF_API_KEY : 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
+
+HF_MODEL : meta-llama/Llama-3-8b-instruct  OR  HF_MODEL : google/flan-t5-small
+
+CLOUDFLARE:
+
+TURNSTILE_SITEKEY : 0x4AAAAAAB6IFU-ivcmi5orf
+TURNSTILE_SECRET : 0x4AAAAAAB6IFQkMn7AcFNEH5UpLeMKicn4
+
+FIREBASE :
+
+  apiKey: "AIzaSyAeIfqt9lJfBwiGceCdIN7PqkTxqcja-nY",
+  authDomain: "bigquerygpt.firebaseapp.com",
+  projectId: "bigquerygpt",
+  storageBucket: "bigquerygpt.firebasestorage.app",
+  messagingSenderId: "900486524685",
+  appId: "1:900486524685:web:3325e296ff049e65190a44",
+  measurementId: "G-D34TSPDKWR"
+
+RENDER : https://mlflow-render-kw3r.onrender.com
+
+ python -m uvicorn BigQueryGPT:app --reload  --host 127.0.0.1 --port 8000

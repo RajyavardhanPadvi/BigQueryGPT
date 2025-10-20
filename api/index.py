@@ -1,0 +1,1 @@
+from BigQueryGPT import app as app

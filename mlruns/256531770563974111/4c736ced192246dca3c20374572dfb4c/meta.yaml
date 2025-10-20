@@ -1,0 +1,14 @@
+artifact_uri: file:///C:/Users/Rajyavardhan%20Padvi/OneDrive/Desktop/DATASET_RAG_enhanced/DATASET_RAG/mlruns/256531770563974111/4c736ced192246dca3c20374572dfb4c/artifacts
+end_time: 1760121792440
+entry_point_name: ''
+experiment_id: '256531770563974111'
+lifecycle_stage: active
+run_id: 4c736ced192246dca3c20374572dfb4c
+run_name: dataspark_index
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1760121792316
+status: 3
+tags: []
+user_id: RajyavardhanPadvi
