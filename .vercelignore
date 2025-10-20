@@ -1,0 +1,14 @@
+*.ipynb
+*.parquet
+*.xlsx
+*.xls
+*.zip
+*.tar
+*.gz
+node_modules
+venv
+.env
+__pycache__/
+uploads/
+data/
+tmp/
