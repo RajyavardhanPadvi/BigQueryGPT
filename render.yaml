@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: bigquerygpt
+    runtime: python
+    plan: free
+    region: oregon
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "uvicorn BigQueryGPT:app --host 0.0.0.0 --port $PORT"
+    healthCheckPath: "/health"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      # set these in Render dashboard (DO NOT commit real values)
+      - key: HF_MODEL
+        value: google/flan-t5-small
+      - key: HF_USE_TOKEN
+        value: "1"
+      - key: HF_API_KEY
+        sync: false
+      - key: TURNSTILE_SITEKEY
+        sync: false
+      - key: TURNSTILE_SECRET
+        sync: false
+      - key: MLFLOW_TRACKING_URI
+        value: https://mlflow-render-xxxx.onrender.com
+      - key: DEBUG
+        value: "0"

@@ -1,0 +1,173 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title>BigQueryGPT</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <style>
+    body{font-family:Inter,Arial;background:#071027;color:#e6f7fb;margin:0}
+    .wrap{max-width:960px;margin:24px auto;padding:0 16px}
+    .hint{color:#9fd6e6;font-size:0.9rem}
+    .btn{background:#2ec4ff;border:none;padding:8px 12px;border-radius:8px;cursor:pointer}
+    .zone{margin-top:14px;border:2px dashed #2ec4ff;padding:18px;border-radius:12px;text-align:center}
+    .chat{margin-top:20px;background:#071827;border:1px solid #123245;border-radius:10px;padding:12px}
+    .msg{margin:8px 0;padding:8px;border-radius:8px;max-width:80%}
+    .user{margin-left:auto;background:#0e2f4a}
+    .bot{margin-right:auto;background:#0b1f33}
+    .row{display:flex;gap:8px;align-items:center}
+    input[type=text]{flex:1;border-radius:8px;border:1px solid #2b4d66;background:#0b1b2b;color:#e6f7fb;padding:8px}
+    pre{white-space:pre-wrap;color:#bfefff}
+  </style>
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+</head>
+<body>
+<div class="wrap">
+  <h2>BigQueryGPT</h2>
+  <p class="hint">1) Upload → 2) Build Index → 3) Ask (per session)</p>
+
+  <div id="tswrap" style="display:none;margin:8px 0">
+    <div class="cf-turnstile" data-sitekey="" data-theme="dark" data-callback="onTsSolved"></div>
+  </div>
+
+  <div class="zone" ondrop="dropHandler(event)" ondragover="dragOverHandler(event)" onclick="fileInput.click()">
+    Drop/click to select files
+    <input id="fileInput" type="file" multiple style="display:none" onchange="uploadFiles(this.files)"/>
+  </div>
+  <pre id="files" class="hint"></pre>
+
+  <div style="margin-top:8px">
+    <button class="btn" onclick="buildIndex()">Build Index</button>
+    <span id="buildOut" class="hint"></span>
+  </div>
+
+  <div class="chat" id="chatBox">
+    <div id="msgs"></div>
+    <div class="row" style="margin-top:8px">
+      <input id="q" type="text" placeholder="Ask your data..." />
+      <button class="btn" onclick="ask()">Ask</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let SID = "";            // session id
+let TURNSTILE_ENABLED = false;
+let TS_TOKEN = "";
+
+function onTsSolved(token){ TS_TOKEN = token; }
+
+function dragOverHandler(e){ e.preventDefault(); }
+function dropHandler(e){ e.preventDefault(); uploadFiles(e.dataTransfer.files); }
+
+const filesOut = document.getElementById('files');
+const buildOut = document.getElementById('buildOut');
+const msgs     = document.getElementById('msgs');
+const fileInput= document.getElementById('fileInput');
+
+function addMsg(txt, who) {
+  const d = document.createElement('div');
+  d.className = 'msg ' + (who==='user' ? 'user' : 'bot');
+  d.textContent = txt;
+  msgs.appendChild(d);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+async function fetchJSON(url, opts={}, timeoutMs=60000){
+  const ctl = new AbortController();
+  const t = setTimeout(()=>ctl.abort(), timeoutMs);
+  try{
+    const r = await fetch(url, {...opts, signal: ctl.signal});
+    const txt = await r.text();
+    let j; try{ j = JSON.parse(txt); } catch{ j = { error: txt }; }
+    clearTimeout(t);
+    if(!r.ok) throw new Error(j.detail || j.error || ('HTTP '+r.status));
+    return j;
+  }catch(e){
+    clearTimeout(t);
+    throw e;
+  }
+}
+
+(async function init(){
+  try {
+    const h = await fetchJSON('/health', {}, 8000);
+    if (h.turnstile) {
+      TURNSTILE_ENABLED = true;
+      document.getElementById('tswrap').style.display = 'block';
+      // inject sitekey from server via /health? If you want, add it there.
+    }
+  } catch {}
+})();
+
+async function getTurnstileToken(timeoutMs=4000){
+  if (!TURNSTILE_ENABLED) return "";
+  const step=100; let waited=0;
+  while (!TS_TOKEN && waited < timeoutMs){ await new Promise(r=>setTimeout(r,step)); waited+=step; }
+  return TS_TOKEN || "";
+}
+
+async function uploadFiles(fs){
+  if(!fs || !fs.length) return;
+  const fd = new FormData();
+  for(const f of fs) fd.append('files', f);
+  if(SID) fd.append('sid', SID);
+  const token = await getTurnstileToken();
+  if (TURNSTILE_ENABLED && !token){ alert('Complete the CAPTCHA first.'); return; }
+  if (TURNSTILE_ENABLED) fd.append('cf_token', token);
+
+  filesOut.textContent = 'Uploading...';
+  try{
+    const j = await fetchJSON('/upload', { method:'POST', body: fd }, 120000);
+    SID = j.sid || SID;
+    filesOut.textContent = `Session: ${SID}\n${j.message || ''}`;
+  }catch(e){
+    filesOut.textContent = 'Upload failed: ' + (e?.message || e);
+  }
+}
+
+async function buildIndex(){
+  if(!SID){ buildOut.textContent = "Upload first (no session)."; return; }
+  buildOut.textContent = "Building...";
+
+  // mimic your CLI defaults
+  const body = {
+    sid: SID,
+    input_format: "csv",
+    header: true,
+    model: "phi",         // or "google/flan-t5-small" etc.
+    concise: true,
+    tts: false
+  };
+  if (TURNSTILE_ENABLED) body.cf_token = await getTurnstileToken();
+
+  try{
+    const j = await fetchJSON('/build_index', {
+      method:'POST',
+      headers:{'content-type':'application/json'},
+      body: JSON.stringify(body)
+    }, 120000);
+    buildOut.textContent = `Index ready (${j.n_docs} docs)`;
+  }catch(e){
+    buildOut.textContent = 'Build error: ' + (e?.message || e);
+  }
+}
+
+async function ask(){
+  if(!SID){ addMsg('No session. Upload & build first.', 'bot'); return; }
+  const q = document.getElementById('q').value.trim();
+  if(!q) return;
+  addMsg(q, 'user');
+  addMsg('Thinking...', 'bot');
+  const token = await getTurnstileToken();
+  const url = '/ask?q=' + encodeURIComponent(q) + '&sid=' + encodeURIComponent(SID) + '&fast=1' + (TURNSTILE_ENABLED ? ('&cf_token='+encodeURIComponent(token)) : '');
+  try{
+    const j = await fetchJSON(url, {}, 60000);
+    const a = j.answer;
+    msgs.lastChild.textContent = (typeof a === 'string') ? a : JSON.stringify(a, null, 2);
+  }catch(e){
+    msgs.lastChild.textContent = 'Ask failed: ' + (e?.message || e);
+  }
+}
+</script>
+</body>
+</html>
